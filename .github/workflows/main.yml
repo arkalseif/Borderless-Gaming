@@ -23,23 +23,39 @@ jobs:
       - name: Build solution (skip signing & installer)
         run: msbuild BorderlessGaming.sln /p:Configuration=Release /p:RunPostBuildEvent=Never
 
-      - name: Find executable
-        id: find_exe
+      - name: Prepare release folder
+        id: prepare_release
         run: |
-          $exe = Get-ChildItem -Path . -Recurse -Filter BorderlessGaming.exe | Where-Object { $_.FullName -match '\\bin\\Release\\' } | Select-Object -First 1
-          echo "EXE_PATH=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $releaseDir = "release"
+          $srcDir = "BorderlessGaming\bin\Release"
+          mkdir $releaseDir
+          Copy-Item "$srcDir\*" $releaseDir -Recurse -Force
+          echo "RELEASE_DIR=$releaseDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Upload executable as artifact
+      - name: Upload release folder as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BorderlessGaming-exe
-          path: ${{ env.EXE_PATH }}
+          name: BorderlessGaming-release
+          path: ${{ env.RELEASE_DIR }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.run_number }}
           name: "Automated Release ${{ github.run_number }}"
-          files: ${{ env.EXE_PATH }}
+          files: ${{ env.RELEASE_DIR }}/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Opcional: Step para capturar logs de ejecución (solo si agregas logging en el EXE)
+      # - name: Run executable for log (debug builds)
+      #   run: |
+      #     cd ${{ env.RELEASE_DIR }}
+      #     .\BorderlessGaming.exe --log > BorderlessGaming.log 2>&1 || exit 0
+      #   continue-on-error: true
+      #   if: always()
+      # - name: Upload execution log
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: BorderlessGaming-log
+      #     path: ${{ env.RELEASE_DIR }}/BorderlessGaming.log
