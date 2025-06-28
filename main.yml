@@ -1,0 +1,38 @@
+name: Build and Release on main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore BorderlessGaming.sln
+
+      - name: Build solution
+        run: msbuild BorderlessGaming.sln /p:Configuration=Release
+
+      - name: Find executable
+        id: find_exe
+        run: |
+          $exe = Get-ChildItem -Path . -Recurse -Filter BorderlessGaming.exe | Where-Object { $_.FullName -match '\\bin\\Release\\' } | Select-Object -First 1
+          echo "EXE_PATH=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.run_number }}
+          name: "Automated Release ${{ github.run_number }}"
+          files: ${{ env.EXE_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
