@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     steps:
       - name: Checkout code
@@ -20,14 +20,20 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore BorderlessGaming.sln
 
-      - name: Build solution
-        run: msbuild BorderlessGaming.sln /p:Configuration=Release
+      - name: Build solution (skip signing & installer)
+        run: msbuild BorderlessGaming.sln /p:Configuration=Release /p:RunPostBuildEvent=Never
 
       - name: Find executable
         id: find_exe
         run: |
           $exe = Get-ChildItem -Path . -Recurse -Filter BorderlessGaming.exe | Where-Object { $_.FullName -match '\\bin\\Release\\' } | Select-Object -First 1
           echo "EXE_PATH=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BorderlessGaming-exe
+          path: ${{ env.EXE_PATH }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
